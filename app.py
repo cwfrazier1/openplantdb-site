@@ -457,14 +457,19 @@ def index():
     return HTMLResponse(INDEX_HTML)
 
 
+@app.get("/api", response_class=HTMLResponse)
+def api_page():
+    return HTMLResponse(API_HTML)
+
+
 # ---------------------------------------------------------------- frontend
 INDEX_HTML = r"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>OpenPlantDB — an open, CC0 garden plant dataset</title>
-<meta name="description" content="OpenPlantDB is a free, public-domain (CC0) dataset of garden plants: germination, days to maturity, USDA zones, spacing, sun/water needs and zone-aware planting windows. Browse it or hit the JSON API.">
+<title>What can I plant now? — find your USDA zone &amp; what to sow today</title>
+<meta name="description" content="Enter your ZIP code to find your USDA hardiness zone and see exactly what you can plant right now — plus what's coming up. Powered by OpenPlantDB, a free CC0 dataset of 300+ garden plants.">
 <style>
 :root{
   --bg:#0e1512; --bg2:#131e19; --card:#17241d; --line:#25382e;
@@ -477,6 +482,9 @@ header{padding:54px 20px 30px;text-align:center;background:radial-gradient(1200p
 header h1{margin:0;font-size:clamp(30px,6vw,52px);letter-spacing:-.02em}
 header h1 .leaf{color:var(--accent)}
 header p{margin:14px auto 0;max-width:640px;color:var(--dim);font-size:17px}
+.hero-controls{justify-content:center;margin:26px auto 0;max-width:760px}
+.browse-h{margin:8px 0 4px;font-size:clamp(20px,4vw,26px)}
+.browse-sub{color:var(--dim);margin:0 0 20px;max-width:720px}
 .badges{margin-top:22px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
 .badge{background:var(--chip);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:13px;color:var(--dim)}
 .badge b{color:var(--accent);font-weight:700}
@@ -549,42 +557,42 @@ code{background:#0a120d;border:1px solid var(--line);border-radius:6px;padding:2
 </head>
 <body>
 <header>
-  <h1><span class="leaf">&#127807;</span> OpenPlantDB</h1>
-  <p>A free, public-domain (CC0) dataset of garden plants — germination, days to maturity, USDA hardiness zones, spacing, sun &amp; water needs, and zone-aware planting windows. Browse it below or build on the <a href="#api">JSON API</a>.</p>
+  <h1><span class="leaf">&#127793;</span> What can I plant now?</h1>
+  <p>Enter your ZIP code — we'll find your USDA hardiness zone and show exactly what's ready to sow or transplant today, plus what's coming up. Planning ahead? Switch to <b>Anytime</b> or pick a season.</p>
+  <div class="wn-controls hero-controls">
+    <input id="wn-zip" inputmode="numeric" maxlength="5" placeholder="ZIP code">
+    <select id="wn-when">
+      <option value="now" selected>Right now</option>
+      <option value="anytime">Anytime this year</option>
+      <option value="spring">Plan for spring</option>
+      <option value="summer">Plan for summer</option>
+      <option value="fall">Plan for fall</option>
+      <option value="winter">Plan for winter</option>
+    </select>
+    <select id="wn-sun"><option value="">Any sun</option><option>full</option><option value="partial">partial</option><option>shade</option></select>
+    <select id="wn-horizon"><option value="30">Next 30 days</option><option value="60" selected>Next 60 days</option><option value="90">Next 90 days</option></select>
+    <button id="wn-go">Show</button>
+    <span id="wn-zone" class="wn-zone"></span>
+  </div>
   <div class="badges">
     <span class="badge"><b id="b-total">…</b> plants</span>
     <span class="badge"><b id="b-cats">…</b> categories</span>
     <span class="badge"><b>CC0</b> public domain</span>
+    <span class="badge"><a href="/api">JSON API &#8594;</a></span>
     <span class="badge"><a href="https://github.com/cwfrazier1/openplantdb">GitHub &#8599;</a></span>
-    <span class="badge"><a href="/openplantdb.json">Download JSON &#8595;</a></span>
   </div>
 </header>
 
 <section class="wn" id="wn">
   <div class="wn-inner">
-    <h2>&#127793; What can I plant now?</h2>
-    <p class="wn-sub">Enter your ZIP — we'll find your USDA hardiness zone and show what's ready to sow or transplant today, plus what's coming up. Planning ahead? Switch to <b>Anytime</b> or pick a season.</p>
-    <div class="wn-controls">
-      <input id="wn-zip" inputmode="numeric" maxlength="5" placeholder="ZIP code">
-      <select id="wn-when">
-        <option value="now" selected>Right now</option>
-        <option value="anytime">Anytime this year</option>
-        <option value="spring">Plan for spring</option>
-        <option value="summer">Plan for summer</option>
-        <option value="fall">Plan for fall</option>
-        <option value="winter">Plan for winter</option>
-      </select>
-      <select id="wn-sun"><option value="">Any sun</option><option>full</option><option value="partial">partial</option><option>shade</option></select>
-      <select id="wn-horizon"><option value="30">Next 30 days</option><option value="60" selected>Next 60 days</option><option value="90">Next 90 days</option></select>
-      <button id="wn-go">Show</button>
-      <span id="wn-zone" class="wn-zone"></span>
-    </div>
     <div class="wn-groups" id="wn-groups"></div>
     <div id="wn-results"></div>
   </div>
 </section>
 
 <div class="wrap">
+  <h2 class="browse-h">&#127807; Browse the full dataset</h2>
+  <p class="browse-sub">A free, public-domain (CC0) library of garden plants — germination, days to maturity, USDA hardiness zones, spacing, sun &amp; water needs, and zone-aware planting windows. Built on <a href="/api">OpenPlantDB</a>.</p>
   <div class="controls">
     <div class="row">
       <input id="q" placeholder="Search plants — tomato, basil, pollinator, wet soil…">
@@ -600,24 +608,10 @@ code{background:#0a120d;border:1px solid var(--line);border-radius:6px;padding:2
   <div class="grid" id="grid"></div>
 </div>
 
-<div class="api" id="api">
-  <h2>JSON API</h2>
-  <p style="color:var(--dim)">Read-only, CORS-open, no auth. Base: <code id="base"></code></p>
-  <div class="ep"><span class="m">GET</span>/api/plants<div class="d">List &amp; filter: <code>?q=</code> <code>?category=</code> <code>?zone=9</code> <code>?sun=full</code> <code>?season=</code> <code>?limit=</code> <code>?offset=</code></div></div>
-  <div class="ep"><span class="m">GET</span>/api/plants/{slug}<div class="d">Full record for one plant</div></div>
-  <div class="ep"><span class="m">GET</span>/api/plants/{slug}/planting?zone=9a<div class="d">Computed sow/plant window for your USDA zone</div></div>
-  <div class="ep"><span class="m">GET</span>/api/whatnow?zip=39564<div class="d">What to plant, zone-aware: <code>?when=now</code> (default, + <code>?horizon=</code>) or <code>?when=anytime</code> / <code>spring</code> / <code>summer</code> / <code>fall</code> / <code>winter</code>. Also <code>?sun=</code> <code>?groups=vegetable,herb</code></div></div>
-  <div class="ep"><span class="m">GET</span>/api/categories<div class="d">Category names + counts</div></div>
-  <div class="ep"><span class="m">GET</span>/api/zones<div class="d">USDA zones with typical frost dates</div></div>
-  <div class="ep"><span class="m">GET</span>/api/stats<div class="d">Dataset totals</div></div>
-  <div class="ep"><span class="m">GET</span>/openplantdb.json<div class="d">The entire dataset in one file</div></div>
-  <p style="color:var(--dim)">Interactive docs: <a href="/api/docs">/api/docs</a></p>
-</div>
-
 <footer>
-  OpenPlantDB is dedicated to the public domain under <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0 1.0</a>.
+  Powered by <a href="/api">OpenPlantDB</a> — dedicated to the public domain under <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0 1.0</a>.
   Built because the old canonical open crop database went offline and its data vanished.<br>
-  Data grows nightly. Source &amp; contributions: <a href="https://github.com/cwfrazier1/openplantdb">github.com/cwfrazier1/openplantdb</a>
+  Data grows nightly. Building something? See the <a href="/api">JSON API</a>. Source &amp; contributions: <a href="https://github.com/cwfrazier1/openplantdb">github.com/cwfrazier1/openplantdb</a>
 </footer>
 
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
@@ -636,7 +630,6 @@ async function boot(){
   ]);
   $('#b-total').textContent = stats.total;
   $('#b-cats').textContent = Object.keys(stats.categories).length;
-  $('#base').textContent = location.origin;
   ZONES = zdoc.zones;
   const zsel = $('#zone');
   ZONES.forEach(z => { const o=document.createElement('option'); o.value=z.zone; o.textContent='Zone '+z.zone; zsel.appendChild(o); });
@@ -775,6 +768,84 @@ async function open(slug){
 $('#modal').addEventListener('click',e=>{if(e.target.id==='modal')e.target.classList.remove('open');});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')$('#modal').classList.remove('open');});
 boot();
+</script>
+</body>
+</html>"""
+
+
+API_HTML = r"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenPlantDB JSON API — free, CC0, no auth</title>
+<meta name="description" content="The OpenPlantDB JSON API: a free, read-only, CORS-open, no-auth API over 300+ CC0 garden plants with zone-aware planting windows. Endpoints, parameters and examples.">
+<style>
+:root{
+  --bg:#0e1512; --bg2:#131e19; --card:#17241d; --line:#25382e;
+  --ink:#e8f0ea; --dim:#93a89a; --accent:#7bc47f; --accent2:#d9b25f; --chip:#1e3128;
+}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+a{color:var(--accent)}
+header{padding:54px 20px 30px;text-align:center;background:radial-gradient(1200px 400px at 50% -120px,#1c3327 0%,var(--bg) 70%);border-bottom:1px solid var(--line)}
+header h1{margin:0;font-size:clamp(28px,5vw,44px);letter-spacing:-.02em}
+header h1 .leaf{color:var(--accent)}
+header p{margin:14px auto 0;max-width:640px;color:var(--dim);font-size:17px}
+.back{display:inline-block;margin-top:18px;color:var(--dim);font-size:14px}
+.wrap{max-width:960px;margin:0 auto;padding:32px 18px 80px}
+h2{font-size:22px;margin:34px 0 6px}
+.lead{color:var(--dim);margin:0 0 18px}
+.ep{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:13px 15px;margin:9px 0;font-family:ui-monospace,Menlo,monospace;font-size:14px}
+.ep .m{color:var(--accent2);font-weight:700;margin-right:8px}
+.ep .d{color:var(--dim);font-family:-apple-system,sans-serif;font-size:13px;margin-top:5px}
+code{background:#0a120d;border:1px solid var(--line);border-radius:6px;padding:2px 6px;font-size:13px;color:var(--accent)}
+pre{background:#0a120d;border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow:auto;font-size:13px;color:var(--ink)}
+.base{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 15px;margin:6px 0 4px;font-family:ui-monospace,Menlo,monospace}
+footer{text-align:center;color:var(--dim);font-size:13px;padding:34px 16px 60px;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="leaf">&#128268;</span> OpenPlantDB JSON API</h1>
+  <p>A free, read-only, CORS-open, no-auth API over the OpenPlantDB dataset — 300+ garden plants with zone-aware planting windows.</p>
+  <a class="back" href="/">&#8592; Back to <b>What can I plant now?</b></a>
+</header>
+
+<div class="wrap">
+  <h2>Base URL</h2>
+  <p class="lead">No key, no auth, permissive CORS — call it straight from the browser.</p>
+  <div class="base" id="base"></div>
+
+  <h2>Endpoints</h2>
+  <div class="ep"><span class="m">GET</span>/api/plants<div class="d">List &amp; filter plants: <code>?q=</code> <code>?category=</code> <code>?zone=9</code> <code>?sun=full</code> <code>?season=</code> <code>?limit=</code> <code>?offset=</code></div></div>
+  <div class="ep"><span class="m">GET</span>/api/plants/{slug}<div class="d">Full record for one plant.</div></div>
+  <div class="ep"><span class="m">GET</span>/api/plants/{slug}/planting?zone=9a<div class="d">Computed sow/plant window for a given USDA zone (letter suffix tolerated, e.g. <code>9a</code>&nbsp;&rarr;&nbsp;9).</div></div>
+  <div class="ep"><span class="m">GET</span>/api/whatnow?zip=39564<div class="d">What to plant, zone-aware from a ZIP: <code>?when=now</code> (default, + <code>?horizon=30|60|90</code>) or <code>?when=anytime</code> / <code>spring</code> / <code>summer</code> / <code>fall</code> / <code>winter</code>. Also <code>?sun=</code> and <code>?groups=vegetable,herb</code>. This is the endpoint powering the home page.</div></div>
+  <div class="ep"><span class="m">GET</span>/api/categories<div class="d">Category names + counts.</div></div>
+  <div class="ep"><span class="m">GET</span>/api/zones<div class="d">USDA zones with typical frost dates.</div></div>
+  <div class="ep"><span class="m">GET</span>/api/stats<div class="d">Dataset totals.</div></div>
+  <div class="ep"><span class="m">GET</span>/openplantdb.json<div class="d">The entire dataset in one file.</div></div>
+
+  <h2>Example</h2>
+  <pre id="example">curl …</pre>
+
+  <h2>Interactive docs</h2>
+  <p class="lead">Full OpenAPI/Swagger explorer: <a href="/api/docs">/api/docs</a></p>
+</div>
+
+<footer>
+  OpenPlantDB is dedicated to the public domain under <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0 1.0</a>.
+  Source &amp; contributions: <a href="https://github.com/cwfrazier1/openplantdb">github.com/cwfrazier1/openplantdb</a>
+</footer>
+
+<script>
+const base = location.origin;
+document.getElementById('base').textContent = base;
+document.getElementById('example').textContent =
+  'curl "' + base + '/api/whatnow?zip=39564&when=now&horizon=60"\n' +
+  'curl "' + base + '/api/plants?q=tomato&zone=9"\n' +
+  'curl "' + base + '/api/plants/basil/planting?zone=9a"';
 </script>
 </body>
 </html>"""
