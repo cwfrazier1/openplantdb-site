@@ -558,41 +558,18 @@ code{background:#0a120d;border:1px solid var(--line);border-radius:6px;padding:2
 <body>
 <header>
   <h1><span class="leaf">&#127793;</span> What can I plant now?</h1>
-  <p>Enter your ZIP code — we'll find your USDA hardiness zone and show exactly what's ready to sow or transplant today, plus what's coming up. Planning ahead? Switch to <b>Anytime</b> or pick a season.</p>
-  <div class="wn-controls hero-controls">
-    <input id="wn-zip" inputmode="numeric" maxlength="5" placeholder="ZIP code">
-    <select id="wn-when">
-      <option value="now" selected>Right now</option>
-      <option value="anytime">Anytime this year</option>
-      <option value="spring">Plan for spring</option>
-      <option value="summer">Plan for summer</option>
-      <option value="fall">Plan for fall</option>
-      <option value="winter">Plan for winter</option>
-    </select>
-    <select id="wn-sun"><option value="">Any sun</option><option>full</option><option value="partial">partial</option><option>shade</option></select>
-    <select id="wn-horizon"><option value="30">Next 30 days</option><option value="60" selected>Next 60 days</option><option value="90">Next 90 days</option></select>
-    <button id="wn-go">Show</button>
-    <span id="wn-zone" class="wn-zone"></span>
-  </div>
+  <p>A free, public-domain (CC0) library of garden plants — search the catalog below, or jump to your ZIP-based planting calendar.</p>
   <div class="badges">
     <span class="badge"><b id="b-total">…</b> plants</span>
     <span class="badge"><b id="b-cats">…</b> categories</span>
     <span class="badge"><b>CC0</b> public domain</span>
+    <span class="badge"><a href="#wn">Plant-by-ZIP &#8595;</a></span>
     <span class="badge"><a href="/api">JSON API &#8594;</a></span>
     <span class="badge"><a href="https://github.com/cwfrazier1/openplantdb">GitHub &#8599;</a></span>
   </div>
 </header>
 
-<section class="wn" id="wn">
-  <div class="wn-inner">
-    <div class="wn-groups" id="wn-groups"></div>
-    <div id="wn-results"></div>
-  </div>
-</section>
-
 <div class="wrap">
-  <h2 class="browse-h">&#127807; Browse the full dataset</h2>
-  <p class="browse-sub">A free, public-domain (CC0) library of garden plants — germination, days to maturity, USDA hardiness zones, spacing, sun &amp; water needs, and zone-aware planting windows. Built on <a href="/api">OpenPlantDB</a>.</p>
   <div class="controls">
     <div class="row">
       <input id="q" placeholder="Search plants — tomato, basil, pollinator, wet soil…">
@@ -607,6 +584,30 @@ code{background:#0a120d;border:1px solid var(--line);border-radius:6px;padding:2
   </div>
   <div class="grid" id="grid"></div>
 </div>
+
+<section class="wn" id="wn">
+  <div class="wn-inner">
+    <h2>&#127793; What can I plant right now?</h2>
+    <p class="wn-sub">Enter your ZIP code — we'll find your USDA hardiness zone and show exactly what's ready to sow or transplant today, plus what's coming up. Planning ahead? Switch to <b>Anytime</b> or pick a season.</p>
+    <div class="wn-controls">
+      <input id="wn-zip" inputmode="numeric" maxlength="5" placeholder="ZIP code">
+      <select id="wn-when">
+        <option value="now" selected>Right now</option>
+        <option value="anytime">Anytime this year</option>
+        <option value="spring">Plan for spring</option>
+        <option value="summer">Plan for summer</option>
+        <option value="fall">Plan for fall</option>
+        <option value="winter">Plan for winter</option>
+      </select>
+      <select id="wn-sun"><option value="">Any sun</option><option>full</option><option value="partial">partial</option><option>shade</option></select>
+      <select id="wn-horizon"><option value="30">Next 30 days</option><option value="60" selected>Next 60 days</option><option value="90">Next 90 days</option></select>
+      <button id="wn-go">Show</button>
+      <span id="wn-zone" class="wn-zone"></span>
+    </div>
+    <div class="wn-groups" id="wn-groups"></div>
+    <div id="wn-results"></div>
+  </div>
+</section>
 
 <footer>
   Powered by <a href="/api">OpenPlantDB</a> — dedicated to the public domain under <a href="https://creativecommons.org/publicdomain/zero/1.0/">CC0 1.0</a>.
