@@ -109,12 +109,27 @@ def signup(body: SignupIn):
     if q1("SELECT 1 FROM users WHERE lower(username)=lower(%s)", (body.username,)):
         raise HTTPException(409, "That username is taken")
     verify_token = secrets.token_urlsafe(24)
+    # Geocode the ZIP up-front so the account has coordinates + zone from the
+    # start; without this every planting inherits NULL lat/lng and vanishes
+    # from the geo-filtered community feed.
+    lat = lng = home_zone = None
+    if body.zip:
+        try:
+            import app
+            ll = app.zip_to_latlng(body.zip)
+            if ll:
+                lat, lng = ll
+            home_zone = app.zip_to_zone(body.zip)
+        except Exception:
+            pass
     row = execute(
-        "INSERT INTO users (email, username, password_hash, display_name, zip, verify_token) "
-        "VALUES (%s,%s,%s,%s,%s,%s) RETURNING id, email, username, display_name, bio, avatar_key, "
-        "zip, home_zone, lat, lng, email_verified, notify_email, notify_push",
+        "INSERT INTO users (email, username, password_hash, display_name, zip, "
+        "home_zone, lat, lng, verify_token) "
+        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id, email, username, display_name, bio, "
+        "avatar_key, zip, home_zone, lat, lng, email_verified, notify_email, notify_push",
         (str(body.email), body.username, hash_pw(body.password),
-         body.display_name or body.username, body.zip or None, verify_token),
+         body.display_name or body.username, body.zip or None,
+         home_zone, lat, lng, verify_token),
     )
     # Fire a verification email (best-effort, non-blocking failure).
     try:

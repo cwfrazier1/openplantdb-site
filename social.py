@@ -346,6 +346,22 @@ def update_me(body: ProfileIn, me=Depends(current_user)):
         if v is not None:
             fields.append(f"{k}=%s")
             params.append(v)
+    # If the ZIP changed but the client didn't send coordinates, geocode it so
+    # the account keeps a usable lat/lng/zone (community feed needs coordinates).
+    if body.zip is not None and body.lat is None and body.lng is None:
+        try:
+            import app
+            ll = app.zip_to_latlng(body.zip)
+            if ll:
+                fields += ["lat=%s", "lng=%s"]
+                params += [ll[0], ll[1]]
+            if body.home_zone is None:
+                z = app.zip_to_zone(body.zip)
+                if z:
+                    fields.append("home_zone=%s")
+                    params.append(z)
+        except Exception:
+            pass
     if fields:
         params.append(me["id"])
         execute(f"UPDATE users SET {', '.join(fields)}, updated_at=now() WHERE id=%s", tuple(params))
