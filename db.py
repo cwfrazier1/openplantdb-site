@@ -2,7 +2,9 @@
 import os
 from contextlib import contextmanager
 from psycopg2.pool import ThreadedConnectionPool
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import RealDictCursor, register_uuid
+
+register_uuid()  # return uuid columns as uuid.UUID and adapt UUID[] params correctly
 
 _pool = None
 
