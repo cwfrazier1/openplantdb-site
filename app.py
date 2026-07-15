@@ -19,6 +19,36 @@ ZONES_PATH = DATA_DIR / "zones.json"
 
 app = FastAPI(title="OpenPlantDB API", version="1.0", docs_url="/api/docs", redoc_url=None)
 
+# --- Social platform (accounts, plantings, feed, requests) -------------------
+try:
+    from fastapi.middleware.cors import CORSMiddleware
+    app.add_middleware(
+        CORSMiddleware, allow_origins=["*"], allow_credentials=False,
+        allow_methods=["*"], allow_headers=["*"],
+    )
+    import auth as _auth
+    import social as _social
+    app.include_router(_auth.router)
+    app.include_router(_social.router)
+
+    from fastapi.responses import StreamingResponse
+    import storage as _storage
+
+    @app.get("/media/{key:path}")
+    def _media(key: str):
+        try:
+            body, ctype, length = _storage.get_stream(key)
+        except Exception:
+            raise HTTPException(404, "Not found")
+        headers = {"Cache-Control": "public, max-age=31536000, immutable"}
+        return StreamingResponse(body, media_type=ctype, headers=headers)
+
+    SOCIAL_ENABLED = True
+except Exception as _e:  # keep the base site alive even if social deps are missing
+    import logging as _logging
+    _logging.getLogger("opdb").warning("social platform disabled: %s", _e)
+    SOCIAL_ENABLED = False
+
 STATE = {"plants": [], "by_slug": {}, "zones": [], "zones_about": "", "loaded": None}
 
 
