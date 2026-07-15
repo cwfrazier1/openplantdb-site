@@ -6,6 +6,7 @@ at /opt/openplantdb and refreshed on startup (a nightly cron pulls + restarts).
 """
 import datetime as dt
 import json
+import os
 import re
 import urllib.request
 from pathlib import Path
@@ -42,6 +43,23 @@ try:
             raise HTTPException(404, "Not found")
         headers = {"Cache-Control": "public, max-age=31536000, immutable"}
         return StreamingResponse(body, media_type=ctype, headers=headers)
+
+    import webui as _webui
+    _SITE_URL = os.environ.get("OPDB_SITE_URL", "https://whatcaniplantnow.com")
+
+    @app.get("/app.js")
+    def _app_js():
+        return Response(_webui.app_js(_SITE_URL), media_type="application/javascript",
+                        headers={"Cache-Control": "public, max-age=300"})
+
+    @app.get("/social.css")
+    def _social_css():
+        return Response(_webui.SOCIAL_CSS, media_type="text/css",
+                        headers={"Cache-Control": "public, max-age=300"})
+
+    @app.get("/community", response_class=HTMLResponse)
+    def _community():
+        return HTMLResponse(_webui.COMMUNITY_HTML)
 
     SOCIAL_ENABLED = True
 except Exception as _e:  # keep the base site alive even if social deps are missing
@@ -239,6 +257,36 @@ def zip_to_zone(zipcode):
             except Exception:
                 pass
         return zone
+    except Exception:
+        return None
+
+
+LATLNGCACHE = Path("/opt/openplantdb-site/latlngcache.json")
+
+
+def zip_to_latlng(zipcode):
+    """US ZIP -> (lat, lng) centroid via zippopotam.us, cached to disk."""
+    zipcode = str(zipcode).strip()[:5]
+    if not zipcode.isdigit():
+        return None
+    try:
+        cache = json.loads(LATLNGCACHE.read_text())
+    except Exception:
+        cache = {}
+    if zipcode in cache:
+        return tuple(cache[zipcode])
+    try:
+        req = urllib.request.Request(f"https://api.zippopotam.us/us/{zipcode}",
+                                     headers={"User-Agent": "openplantdb"})
+        with urllib.request.urlopen(req, timeout=8) as r:
+            place = json.loads(r.read())["places"][0]
+        latlng = [float(place["latitude"]), float(place["longitude"])]
+        cache[zipcode] = latlng
+        try:
+            LATLNGCACHE.write_text(json.dumps(cache))
+        except Exception:
+            pass
+        return tuple(latlng)
     except Exception:
         return None
 
@@ -474,6 +522,15 @@ def whatnow(
         "now_count": len(now_list), "soon_count": len(soon_list),
         "now": now_list, "soon": soon_list,
     }
+
+
+@app.get("/api/geo/zip")
+def geo_zip(zip: str = Query(..., description="US ZIP code")):
+    """Resolve a ZIP to lat/lng + USDA zone — used to center the community feed."""
+    ll = zip_to_latlng(zip)
+    if not ll:
+        raise HTTPException(404, f"could not resolve ZIP '{zip}'")
+    return {"zip": zip[:5], "lat": ll[0], "lng": ll[1], "zone": zip_to_zone(zip)}
 
 
 @app.get("/openplantdb.json")
@@ -805,6 +862,7 @@ $('#modal').addEventListener('click',e=>{if(e.target.id==='modal')e.target.class
 document.addEventListener('keydown',e=>{if(e.key==='Escape')$('#modal').classList.remove('open');});
 boot();
 </script>
+<script src="/app.js" defer></script>
 </body>
 </html>"""
 
