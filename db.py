@@ -20,6 +20,10 @@ def pool():
             user=os.environ.get("OPDB_PG_USER", "openplantdb"),
             password=os.environ["OPDB_PG_PASSWORD"],
             connect_timeout=5,
+            # The database is SQL_ASCII, so psycopg2 otherwise defaults to the
+            # ascii codec and blows up on any non-ASCII input (ñ, é, emoji).
+            # Forcing UTF8 makes it read/write raw UTF-8 bytes correctly.
+            client_encoding="UTF8",
         )
     return _pool
 
