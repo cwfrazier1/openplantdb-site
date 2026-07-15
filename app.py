@@ -462,6 +462,11 @@ def api_page():
     return HTMLResponse(API_HTML)
 
 
+@app.get("/privacy", response_class=HTMLResponse)
+def privacy_page():
+    return HTMLResponse(PRIVACY_HTML)
+
+
 # ---------------------------------------------------------------- frontend
 INDEX_HTML = r"""<!DOCTYPE html>
 <html lang="en">
@@ -848,6 +853,85 @@ document.getElementById('example').textContent =
   'curl "' + base + '/api/plants?q=tomato&zone=9"\n' +
   'curl "' + base + '/api/plants/basil/planting?zone=9a"';
 </script>
+</body>
+</html>"""
+
+
+PRIVACY_HTML = r"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy — What Can I Plant Now</title>
+<meta name="description" content="Privacy policy for the What Can I Plant Now iOS app and whatcaniplantnow.com. We do not collect, store, or share any personal information.">
+<style>
+:root{--bg:#0e1512;--bg2:#131e19;--card:#17241d;--line:#25382e;--ink:#e8f0ea;--dim:#93a89a;--accent:#7bc47f}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+a{color:var(--accent)}
+header{padding:54px 20px 26px;text-align:center;background:radial-gradient(1200px 400px at 50% -120px,#1c3327 0%,var(--bg) 70%);border-bottom:1px solid var(--line)}
+header h1{margin:0;font-size:clamp(26px,5vw,40px);letter-spacing:-.02em}
+header p{margin:12px auto 0;max-width:640px;color:var(--dim)}
+.wrap{max-width:760px;margin:0 auto;padding:36px 20px 80px}
+.wrap h2{font-size:20px;margin:34px 0 8px;color:var(--accent)}
+.wrap p,.wrap li{color:var(--ink)}
+.wrap li{margin:6px 0}
+.eff{color:var(--dim);font-size:14px}
+footer{border-top:1px solid var(--line);padding:26px 20px;text-align:center;color:var(--dim);font-size:14px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Privacy Policy</h1>
+  <p>What Can I Plant Now &middot; whatcaniplantnow.com</p>
+</header>
+<div class="wrap">
+  <p class="eff">Effective July 14, 2026</p>
+
+  <p><b>Short version: we do not collect, store, or share any personal
+  information about you.</b> What Can I Plant Now has no accounts, no logins,
+  no analytics, no advertising, and no third-party tracking.</p>
+
+  <h2>Information we collect</h2>
+  <p>None. The app does not require an account and does not ask for your name,
+  email, contacts, photos, location permissions, or any other personal
+  identifiers. We do not use analytics or advertising SDKs, and we do not
+  track you across apps or websites.</p>
+
+  <h2>Your ZIP code</h2>
+  <p>If you enter a ZIP code, it is saved <b>only on your device</b> so the app
+  can remember your USDA hardiness zone between visits. Your ZIP is sent to
+  the OpenPlantDB API (whatcaniplantnow.com) solely to look up the matching
+  hardiness zone and planting windows. It is not tied to your identity, is not
+  used to profile you, and is not retained in association with you.</p>
+
+  <h2>Network requests</h2>
+  <p>To show plant data and planting dates, the app fetches information from
+  the public OpenPlantDB API. Like any web server, our infrastructure may
+  transiently log request metadata (such as IP address) for security and
+  operational reliability. This information is not used to identify you, is not
+  linked to your ZIP or any profile, and is never sold or shared for marketing.</p>
+
+  <h2>Data sharing and sale</h2>
+  <p>We do not sell your data and we do not share personal data with third
+  parties, because we do not collect it in the first place.</p>
+
+  <h2>Children's privacy</h2>
+  <p>The app is safe for all ages and collects no personal information from
+  anyone, including children under 13.</p>
+
+  <h2>Changes to this policy</h2>
+  <p>If this policy changes, the updated version will be posted at this URL with
+  a new effective date.</p>
+
+  <h2>Contact</h2>
+  <p>Questions about this policy can be raised through the project's public
+  repository at
+  <a href="https://github.com/cwfrazier1/openplantdb">github.com/cwfrazier1/openplantdb</a>.</p>
+</div>
+<footer>
+  <a href="/">&larr; whatcaniplantnow.com</a>
+</footer>
 </body>
 </html>"""
 
