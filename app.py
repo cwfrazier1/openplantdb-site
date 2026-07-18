@@ -41,8 +41,15 @@ try:
             body, ctype, length = _storage.get_stream(key)
         except Exception:
             raise HTTPException(404, "Not found")
-        headers = {"Cache-Control": "public, max-age=31536000, immutable"}
-        return StreamingResponse(body, media_type=ctype, headers=headers)
+        # Defense-in-depth against any non-raster object that slipped in: never
+        # let the browser sniff/execute /media content as HTML/JS in the site
+        # origin. Coerce unknown types to octet-stream and forbid MIME sniffing.
+        safe_type = ctype if ctype in _storage._EXT else "application/octet-stream"
+        headers = {
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "X-Content-Type-Options": "nosniff",
+        }
+        return StreamingResponse(body, media_type=safe_type, headers=headers)
 
     import webui as _webui
     _SITE_URL = os.environ.get("OPDB_SITE_URL", "https://whatcaniplantnow.com")

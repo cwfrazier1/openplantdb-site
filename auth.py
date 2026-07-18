@@ -1,15 +1,47 @@
 """Authentication: signup, login, JWT sessions, current-user dependency."""
 import os, re, time, secrets
 import bcrypt, jwt
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header, Request
 from pydantic import BaseModel, EmailStr, constr
 from db import q1, execute
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
-JWT_SECRET = os.environ.get("OPDB_JWT_SECRET", "dev-insecure-change-me")
+# Fail closed: a public auth service must never sign tokens with a known dev
+# secret — anyone could then forge a session for any user id (full auth bypass).
+JWT_SECRET = os.environ.get("OPDB_JWT_SECRET") or ""
+if not JWT_SECRET or JWT_SECRET == "dev-insecure-change-me":
+    raise RuntimeError("OPDB_JWT_SECRET must be set to a strong random secret (no insecure fallback)")
 JWT_ALG = "HS256"
 JWT_TTL = 60 * 60 * 24 * 90  # 90 days
+
+# --- Per-IP brute-force / abuse throttle for the auth endpoints (in-process) --
+_AUTH_HITS: dict[str, list[float]] = {}
+_AUTH_MAX = 12
+_AUTH_WINDOW = 300.0  # 12 attempts / 5 min per IP
+
+
+def _auth_ip(request: Request) -> str:
+    # Prefer the proxy's X-Real-IP; else the LAST X-Forwarded-For hop (the first
+    # hop is client-supplied and spoofable). Falls back to the socket peer.
+    xrip = request.headers.get("x-real-ip", "").strip()
+    if xrip:
+        return xrip
+    xff = request.headers.get("x-forwarded-for", "")
+    if xff:
+        return xff.split(",")[-1].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def _auth_throttle(request: Request) -> None:
+    ip = _auth_ip(request)
+    now = time.monotonic()
+    hits = [t for t in _AUTH_HITS.get(ip, []) if now - t < _AUTH_WINDOW]
+    if len(hits) >= _AUTH_MAX:
+        _AUTH_HITS[ip] = hits
+        raise HTTPException(429, "Too many attempts; please try again later")
+    hits.append(now)
+    _AUTH_HITS[ip] = hits
 
 USERNAME_RE = re.compile(r"^[a-zA-Z0-9_.]{3,24}$")
 
@@ -101,13 +133,16 @@ def _me_payload(row) -> dict:
 
 
 @router.post("/signup")
-def signup(body: SignupIn):
+def signup(body: SignupIn, request: Request):
+    _auth_throttle(request)
     if not USERNAME_RE.match(body.username):
         raise HTTPException(400, "Username must be 3-24 chars: letters, numbers, _ or .")
+    # Uniform message for both email- and username-taken so the endpoint can't be
+    # used to enumerate which emails have accounts.
     if q1("SELECT 1 FROM users WHERE lower(email)=lower(%s)", (body.email,)):
-        raise HTTPException(409, "An account with that email already exists")
+        raise HTTPException(409, "That email or username is already in use")
     if q1("SELECT 1 FROM users WHERE lower(username)=lower(%s)", (body.username,)):
-        raise HTTPException(409, "That username is taken")
+        raise HTTPException(409, "That email or username is already in use")
     verify_token = secrets.token_urlsafe(24)
     # Geocode the ZIP up-front so the account has coordinates + zone from the
     # start; without this every planting inherits NULL lat/lng and vanishes
@@ -141,7 +176,8 @@ def signup(body: SignupIn):
 
 
 @router.post("/login")
-def login(body: LoginIn):
+def login(body: LoginIn, request: Request):
+    _auth_throttle(request)
     row = q1("SELECT * FROM users WHERE lower(email)=lower(%s) OR lower(username)=lower(%s)",
              (body.email, body.email))
     if not row or not verify_pw(body.password, row["password_hash"]):

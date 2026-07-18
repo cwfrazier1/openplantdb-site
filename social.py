@@ -107,8 +107,11 @@ async def add_photo(pid: str, file: UploadFile = File(...), me=Depends(current_u
     if len(data) > MAX_PHOTO:
         raise HTTPException(413, "Image too large (max 8 MB)")
     ct = file.content_type or "image/jpeg"
-    if not ct.startswith("image/"):
-        raise HTTPException(400, "Only image uploads are allowed")
+    # Whitelist raster types only. `image/*` accepts image/svg+xml, which
+    # executes JS when the stored object is served inline from /media (stored
+    # XSS -> token theft). storage._EXT is the single source of truth.
+    if ct not in storage._EXT:
+        raise HTTPException(400, "Only JPEG, PNG, WebP, or HEIC images are allowed")
     key = storage.put(data, ct)
     pos = q1("SELECT COALESCE(MAX(position)+1,0) AS n FROM planting_photos WHERE planting_id=%s", (pid,))["n"]
     execute("INSERT INTO planting_photos (planting_id, s3_key, position) VALUES (%s,%s,%s)",

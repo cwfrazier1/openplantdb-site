@@ -591,9 +591,9 @@ window.__opdbCommunity=function(){
       const u=res.user,mine=OPDB.me()&&OPDB.me().username.toLowerCase()===username.toLowerCase();
       const box=$('#c-profile');
       box.innerHTML=`<div class="cprofile">${OPDB.avatar(u,'opdb-avatar')}
-        <div style="flex:1"><div style="font-weight:800;font-size:20px">${u.display_name||u.username}</div>
-        <div style="color:var(--dim);font-size:13px">@${u.username}${u.home_zone?' · zone '+u.home_zone:''}</div>
-        ${u.bio?`<div style="margin-top:6px">${u.bio.replace(/[<>]/g,'')}</div>`:''}</div>
+        <div style="flex:1"><div style="font-weight:800;font-size:20px">${esc(u.display_name||u.username)}</div>
+        <div style="color:var(--dim);font-size:13px">@${esc(u.username)}${u.home_zone?' · zone '+esc(u.home_zone):''}</div>
+        ${u.bio?`<div style="margin-top:6px">${esc(u.bio)}</div>`:''}</div>
         <div class="stats"><span><b>${res.counts.plantings}</b>plantings</span><span><b>${res.counts.followers}</b>followers</span><span><b>${res.counts.following}</b>following</span></div>
         ${mine?'':`<button class="opdb-btn${res.following?' ghost':''}" id="c-follow">${res.following?'Following':'Follow'}</button>`}</div>`;
       const fb=document.getElementById('c-follow');
