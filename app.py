@@ -41,8 +41,15 @@ try:
             body, ctype, length = _storage.get_stream(key)
         except Exception:
             raise HTTPException(404, "Not found")
-        headers = {"Cache-Control": "public, max-age=31536000, immutable"}
-        return StreamingResponse(body, media_type=ctype, headers=headers)
+        # Defense-in-depth against any non-raster object that slipped in: never
+        # let the browser sniff/execute /media content as HTML/JS in the site
+        # origin. Coerce unknown types to octet-stream and forbid MIME sniffing.
+        safe_type = ctype if ctype in _storage._EXT else "application/octet-stream"
+        headers = {
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "X-Content-Type-Options": "nosniff",
+        }
+        return StreamingResponse(body, media_type=safe_type, headers=headers)
 
     import webui as _webui
     _SITE_URL = os.environ.get("OPDB_SITE_URL", "https://whatcaniplantnow.com")
@@ -126,20 +133,35 @@ def _window_dates(plant, zrec):
 
 
 def compute_planting(plant, zone_str):
-    """Return an approximate sow/plant window for a plant in a given USDA zone."""
+    """Return the plant's realistic in-ground planting window for a zone.
+
+    This MUST agree with the window shown on the "what can I plant now" cards,
+    so it derives from the same `plantable_ranges()` model and picks the same
+    range (active today, else soonest upcoming, else most recent). Previously
+    this used a separate narrow 'ideal sow band' (`_window_dates`) which
+    disagreed with the card — e.g. a card reading "Feb 15 - Jul 20" opened a
+    detail reading "Nov 23 - Dec 7". Single source of truth now.
+    """
     z = _zone_record(zone_str)
     if z is None:
         return None
     p = plant.get("planting") or {}
-    wd = _window_dates(plant, z)
-    if wd is None:
+    ranges = plantable_ranges(plant, z)
+    if not ranges:
         return {"anchor": p.get("anchor"), "zone": zone_str, "window": None,
-                "note": p.get("note"), "reason": "frost-free zone or no anchor offset"}
+                "note": p.get("note"), "reason": "no plantable window in this zone"}
+    today = dt.date.today()
+    cur = next(((s, e) for (s, e) in ranges if s <= today <= e), None)
+    if cur:
+        s, e = cur
+    else:
+        upcoming = sorted((r for r in ranges if r[0] > today), key=lambda r: r[0])
+        s, e = upcoming[0] if upcoming else max(ranges, key=lambda r: r[1])
     fmt = "%b %-d"
     return {
         "anchor": p.get("anchor"),
         "zone": zone_str,
-        "window": {"start": wd[0].strftime(fmt), "end": wd[1].strftime(fmt)},
+        "window": {"start": s.strftime(fmt), "end": e.strftime(fmt)},
         "note": p.get("note"),
     }
 
@@ -346,12 +368,54 @@ def list_plants(
             return lo is not None and hi is not None and lo <= zone <= hi
         items = [p for p in items if hardy(p)]
     if q:
-        ql = q.lower()
-        def match(p):
-            return any(ql in str(p.get(f, "")).lower()
-                       for f in ("common_name", "scientific_name", "directions",
-                                 "slug", "category", "subcategory"))
-        items = [p for p in items if match(p)]
+        ql = q.lower().strip()
+        # De-pluralize so "potatoes" matches the singular "Potato" names in the
+        # dataset. We score against every variant and keep the best hit.
+        qvars = {ql}
+        if len(ql) > 3 and ql.endswith("es"):
+            qvars.add(ql[:-2])
+        if len(ql) > 3 and ql.endswith("s"):
+            qvars.add(ql[:-1])
+        # Relevance scoring instead of an unranked substring match. The old code
+        # matched the query as a substring of `directions` too, so "potato"
+        # surfaced Coral Vine / Pentas / Dill (whose growing notes mention
+        # potatoes as companions) and buried the actual potatoes, since results
+        # kept dataset order. Now we score by WHERE the term hits: a
+        # name/scientific/slug hit ranks far above a growing-notes mention, and
+        # results sort by score.
+        def _score(p):
+            name = str(p.get("common_name", "")).lower()
+            sci = str(p.get("scientific_name", "")).lower()
+            slug = str(p.get("slug", "")).lower()
+            sub = str(p.get("subcategory", "")).lower()
+            cat = str(p.get("category", "")).lower()
+            words = re.split(r"[^a-z0-9]+", name)
+            dwords = None
+            best = 0
+            for qv in qvars:
+                if name == qv:
+                    best = max(best, 1000)
+                elif name.startswith(qv) or qv in words:
+                    best = max(best, 850)
+                elif qv in name:
+                    best = max(best, 700)
+                if qv in sci:
+                    best = max(best, 500)
+                if qv in slug:
+                    best = max(best, 450)
+                if qv == sub or qv == cat:
+                    best = max(best, 300)
+                # Growing-notes mention only counts as a weak, whole-word
+                # tiebreaker so companion-plant references can't pollute the top.
+                if best == 0:
+                    if dwords is None:
+                        dwords = re.split(r"[^a-z0-9]+", str(p.get("directions", "")).lower())
+                    if qv in dwords:
+                        best = 40
+            return best
+        scored = [(s, p) for p in items if (s := _score(p)) > 0]
+        scored.sort(key=lambda sp: (-sp[0], str(sp[1].get("common_name", "")).lower()))
+        items = [p for (_, p) in scored]
     total = len(items)
     page = items[offset:offset + limit]
     return {"total": total, "count": len(page), "offset": offset, "limit": limit,
