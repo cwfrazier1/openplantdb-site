@@ -722,6 +722,7 @@ code{background:#0a120d;border:1px solid var(--line);border-radius:6px;padding:2
     <span class="badge"><a href="#wn">Plant-by-ZIP &#8595;</a></span>
     <span class="badge"><a href="/api">JSON API &#8594;</a></span>
     <span class="badge"><a href="https://github.com/cwfrazier1/openplantdb">GitHub &#8599;</a></span>
+    <span class="badge"><a href="https://apps.apple.com/app/id6790969385">&#128241; iOS App &#8599;</a></span>
   </div>
 </header>
 
